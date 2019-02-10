@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# HOSTNAME=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/')
 TLS_ENABLED=${TLS_ENABLED:-false}
 if $TLS_ENABLED; then
     HTTP="https"
@@ -54,7 +55,7 @@ chmod 0700 /var/lib/keystone/ /var/log/keystone/ /etc/keystone/
 
 # Keystone Database and user
 sed -i 's|KEYSTONE_DB_PASSWD|'"$KEYSTONE_DB_PASSWD"'|g' /keystone.sql
-mysql -uroot -p$KEYSTONE_DB_ROOT_PASSWD -h $KEYSTONE_DB_HOST < /keystone.sql
+mysql -uroot -p$KEYSTONE_DB_ROOT_PASSWD -h $KEYSTONE_DB_HOST -P4000 < /keystone.sql
 
 # Update keystone.conf
 sed -i "s/KEYSTONE_DB_PASSWORD/$KEYSTONE_DB_PASSWD/g" /etc/keystone/keystone.conf
@@ -64,7 +65,11 @@ sed -i "s/KEYSTONE_DB_HOST/$KEYSTONE_DB_HOST/g" /etc/keystone/keystone.conf
 /usr/bin/memcached -u root & >/dev/null || true
 
 # Populate keystone database
-su -s /bin/sh -c 'keystone-manage db_sync' keystone
+# su -s /bin/sh -c 'keystone-manage db_sync' keystone
+
+# Initialize Fernet key repositories
+keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
 
 # Bootstrap keystone
 keystone-manage bootstrap --bootstrap-username admin \
